@@ -1,3 +1,15 @@
+Installing
+==========
+
+Prereqs:
+Compile http://fallabs.com/kyotocabinet/ core and python
+PyQt
+pycrypto
+
+Usage
+=====
+./securedog.py
+
 Securedog
 =========
 
@@ -8,7 +20,7 @@ Encrypted messages are send between trusted parties.
 Todo
 ====
 
-* QtGUI for tests
+* QtGUI for tests -- done
 * QtGUI for sending one message
 * QtGUI for Inbox, Index, Content-Views
     * Conetent is txt, image, video, html
