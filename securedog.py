@@ -117,30 +117,69 @@ def test_function():
     msg = sock.recv(1024)
     qt.QMessageBox.about(w, "Received Data", msg)
 
-# menubar
-menu = qt.QMenu("&Help", w)
-test = qt.QAction("test", menu)
+
+from sets import Set
+friends = Set([u"foo", u"Bar", u"baz"])
+
+
+def new_friend():
+    pass
+
+
+def remove_friend():
+    global friends
+    friends.remove(str(cbox.currentText()))
+    cbox.removeItem(cbox.currentIndex())
+
+
+def compose_message():
+    pass
+
+# Menubar
+menu = qt.QMenu("&Main", w)
+add = qt.QAction("&Add Friend", menu)
+compose = qt.QAction("&Compose", menu)
+test = qt.QAction("Self test", menu)
+add.triggered.connect(new_friend)
+compose.triggered.connect(compose_message)
 test.triggered.connect(test_function)
+menu.addAction(add)
+menu.addAction(compose)
 menu.addAction(test)
 w.menuBar().addMenu(menu)
 
-#status bar
+# Centeral Widget
+v = qt.QVBoxLayout(w)
+cw = qt.QWidget(w)
+cw.setLayout(v)
+w.setCentralWidget(cw)
+
+cbox = qt.QComboBox(w)
+for friend in friends:
+    cbox.addItem(friend)
+h = qt.QHBoxLayout(w)
+remove = qt.QPushButton("Remove")
+remove.clicked.connect(remove_friend)
+h.addWidget(remove)
+new = qt.QPushButton("New")
+new.clicked.connect(new_friend)
+h.addWidget(new)
+v.addLayout(h)
+v.addWidget(cbox)
+
+# Inbox
+h1 = qt.QHBoxLayout(w)
+ib = qt.QTreeWidget(w)
+ib.resize(480, 280)
+h1.addWidget(ib)
+cb = qt.QTextEdit(w)
+cb.resize(480, 440)
+h1.addWidget(cb)
+v.addLayout(h1)
+
+# Status bar
 w.statusBar().showMessage("I'm Listening")
 
-
-def show_friends_data_store():
-    pass
-# Central Widget
-vbox = qt.QVBoxLayout()
-vbox.addStretch(1)
-hbox = qt.QHBoxLayout()
-vbox.addLayout(hbox)
-hbox.addStretch(1)
-friends = qt.QPushButton("Friends")
-test.triggered.connect(show_friends_data_store)
-w.setCentralWidget(vbox)
-
-# for each meesages, push in vbox
 
 w.resize(480, 720)
 w.move(0, 0)
