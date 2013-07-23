@@ -2,13 +2,13 @@ Installing
 ==========
 
 Prereqs:
-Compile http://fallabs.com/kyotocabinet/ core and python
 PyQt
 pycrypto
 
 Usage
 =====
-./securedog.py
+
+securedog.py
 
 Securedog
 =========
@@ -21,7 +21,7 @@ Todo
 ====
 
 * QtGUI for tests -- done
-* QtGUI for sending one message
+* QtGUI for sending one message -- done
 * QtGUI for Inbox, Index, Content-Views
     * Conetent is txt, image, video, html
 

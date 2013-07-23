@@ -1,193 +1,142 @@
-"""
-RSA encryption 2048
-
-json protocol:
-
-recv -- "req_type" : "pubkey"
-send -- "pubkey" : filestring
-
-recv -- "req_type" : "message"
-        "message" : string
-        "signature": string
-send -- "OK"
-"""
-import SocketServer
+from PyQt4 import QtGui as qt
 import socket
 import json
-import sys
-import base64
-import threading
-import signal
-
-from pubsub import pub
 from Crypto.PublicKey import RSA
+from pubsub import pub
+import base64
+import sys
 
-privatekey = sys.argv[1]
-port = sys.argv[2]
-port = int(port)
-pubkey = privatekey + ".pub"
-pubkey_text = open(pubkey).read()
-privatekey_text = open(privatekey).read()
-RSA_pubkey = RSA.importKey(pubkey_text)
-RSA_privatekey = RSA.importKey(privatekey_text)
+class QtSecureDog(qt.QMainWindow):
+    def __init__(self, port):
+        super(QtSecureDog, self).__init__()
+        self.friends = [{"addr": "192",
+                         "alias": "foo",
+                         "pubkey": "zxx"
+                        },
+                        {"addr": "193",
+                         "alias": "bar",
+                         "pubkey": "xxz"
+                        }]
+        self.port = port
+        self.initUI()
 
+    def test_function(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(("127.0.0.1", self.port))
+        sock.sendall(json.dumps({"req_type": "pubkey"}))
+        sock.shutdown(socket.SHUT_WR)
+        pubkey_text = sock.recv(4096)
+        RSA_pubkey = RSA.importKey(json.loads(pubkey_text)["pubkey"])
+        sock.close()
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(("127.0.0.1", self.port))
+        enc_msg = RSA_pubkey.encrypt("Hello World", 32)
+        sock.sendall(json.dumps({"req_type": "echo", "message": base64.b64encode(enc_msg[0])}))
+        sock.shutdown(socket.SHUT_WR)
+        msg = sock.recv(1024)
+        qt.QMessageBox.about(self, "Received Data", msg)
 
-def listener_for_echo(arg, request):
-    data = arg
-    enc_msg = data["message"]
-#    sig = data["signature"]
-    msg = RSA_privatekey.decrypt(base64.b64decode(enc_msg))
-    request.sendall(msg)
+    def new_friend(self):
+        pass
 
+    def mod_friends(self):
+        self.friends.remove(str(self.cbox.currentText()))
+        self.cbox.removeItem(self.cbox.currentIndex())
 
-def listener_for_msg(arg, request):
-    data = arg
-    enc_msg = data["message"]
-#    sig = data["signature"]
-    RSA_privatekey.decrypt(base64.b64decode(enc_msg))
-    request.sendall("OK")
+    def compose_message(self):
+        cd = ComposeDialog(self.port)
+        cd.exec_()
 
+    def initUI(self):
+        menu = qt.QMenu("&Main", self)
+        mhelp = qt.QAction("&Help", menu)
+        test = qt.QAction("Self test", menu)
+        test.triggered.connect(self.test_function)
+        menu.addAction(mhelp)
+        menu.addAction(test)
+        self.menuBar().addMenu(menu)
 
-def listener_for_pubkey(arg, request):
-    global pubkey_text
-    request.sendall(json.dumps({"pubkey": pubkey_text}))
+        # Centeral Widget
+        v = qt.QVBoxLayout()
+        cw = qt.QWidget(self)
+        cw.setLayout(v)
+        self.setCentralWidget(cw)
 
+        cbox = qt.QComboBox(self)
+        for friend in self.friends:
+            cbox.addItem(friend["alias"])
+        h = qt.QHBoxLayout()
+        mod = qt.QPushButton("Mod")
+        mod.clicked.connect(self.mod_friends)
+        h.addWidget(mod)
+        compose = qt.QPushButton("Compose")
+        compose.clicked.connect(self.compose_message)
+        h.addWidget(compose)
+        v.addLayout(h)
+        v.addWidget(cbox)
 
-def listener_for_new(arg, request):
-    data = arg
-    if data.get('req_type', "") == "pubkey":
-        pub.sendMessage("pubkey", arg=data, request=request)
-    elif data.get('req_type', "") == "message":
-        pub.sendMessage("message", arg=data, request=request)
-    elif data.get('req_type', "") == "echo":
-        pub.sendMessage("echo", arg=data, request=request)
-    else:
-        request.sendall(json.dumps({"status": "OK"}))
+        cb = qt.QTextEdit(self)
+        v.addWidget(cb)
 
+        self.statusBar().showMessage("I'm Listening")
+        self.resize(960,720)
+        self.move(0, 0)
+        self.setWindowTitle('SecureDOG')
 
-pub.subscribe(listener_for_new, 'new')
-pub.subscribe(listener_for_pubkey, 'pubkey')
-pub.subscribe(listener_for_msg, 'message')
-pub.subscribe(listener_for_echo, 'echo')
+class ComposeDialog(qt.QDialog):
 
-
-class RequestHandler(SocketServer.StreamRequestHandler):
-    def handle(self):
-        total_data = []
-        while True:
-            data = self.request.recv(1500)
-            if not data:
-                break
-            total_data.append(data)
-        data = ''.join(total_data)
-        pub.sendMessage("new", arg=json.loads(data), request=self.request)
-
-
-server = SocketServer.TCPServer(("127.0.0.1", port), RequestHandler)
-print "Server Started"
-t = threading.Thread(target=server.serve_forever)
-t.start()
-
-
-def handleSigTERM():
-    print "Shutdown"
-    server.socket.close()
-    server.shutdown()
-    exit(1)
-signal.signal(signal.SIGTERM, handleSigTERM)
-
-from PyQt4 import QtGui as qt
-
-app = qt.QApplication([])
-w = qt.QMainWindow()
-
-
-def test_function():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(("127.0.0.1", port))
-    sock.sendall(json.dumps({"req_type": "pubkey"}))
-    sock.shutdown(socket.SHUT_WR)
-    sock.recv(4096)
-    sock.close()
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(("127.0.0.1", port))
-    enc_msg = RSA_pubkey.encrypt("Hello World", 32)
-    sock.sendall(json.dumps({"req_type": "echo", "message": base64.b64encode(enc_msg[0])}))
-    sock.shutdown(socket.SHUT_WR)
-    msg = sock.recv(1024)
-    qt.QMessageBox.about(w, "Received Data", msg)
-
-
-from sets import Set
-friends = Set([u"foo", u"Bar", u"baz"])
-
-
-def new_friend():
-    pass
+    def send_message(self):
+        msg = str(self.me.toPlainText())
+        pubkey_text = open(sys.argv[1] + ".pub").read()
+        RSA_pubkey = RSA.importKey(pubkey_text)
+        enc_msg = RSA_pubkey.encrypt(msg, 32)
+        json_string = json.dumps({"req_type": "message", "message" : base64.b64encode(enc_msg[0]) })
+        print json_string
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect(("127.0.0.1", self.port))
+            sock.send(json_string)
+            sock.shutdown(socket.SHUT_WR)
+            ok_ack = sock.recv(256)
+            sock.close()
+        except socket.error:
+            qt.QMessageBox.error(self, "Error", "Could Not Open Socket")
 
 
-def remove_friend():
-    global friends
-    friends.remove(str(cbox.currentText()))
-    cbox.removeItem(cbox.currentIndex())
+    def initUI(self):
+        h = qt.QHBoxLayout()
+        label = qt.QLabel("To", self)
+        cbox = qt.QComboBox(self)
+        for friend in self.friends:
+            cbox.addItem(friend["alias"])
+        h.addWidget(label)
+        h.addWidget(cbox)
+
+        v = qt.QVBoxLayout()
+        self.me = qt.QTextEdit(self)
+
+        sb = qt.QPushButton("Send Message")
+        sb.clicked.connect(self.send_message)
+
+        v.addLayout(h)
+        v.addWidget(self.me)
+        v.addWidget(sb)
+
+        self.setLayout(v)
+        self.resize(660, 360)
+
+    def __init__(self, port):
+        super(ComposeDialog, self).__init__()
+        self.friends = [{"addr": "192",
+                         "alias": "foo",
+                         "pubkey": "zxx"
+                        },
+                        {"addr": "193",
+                         "alias": "bar",
+                         "pubkey": "xxz"
+                        }]
+
+        self.port = port
+        self.initUI()
 
 
-def compose_message():
-    pass
-
-# Menubar
-menu = qt.QMenu("&Main", w)
-add = qt.QAction("&Add Friend", menu)
-compose = qt.QAction("&Compose", menu)
-test = qt.QAction("Self test", menu)
-add.triggered.connect(new_friend)
-compose.triggered.connect(compose_message)
-test.triggered.connect(test_function)
-menu.addAction(add)
-menu.addAction(compose)
-menu.addAction(test)
-w.menuBar().addMenu(menu)
-
-# Centeral Widget
-v = qt.QVBoxLayout(w)
-cw = qt.QWidget(w)
-cw.setLayout(v)
-w.setCentralWidget(cw)
-
-cbox = qt.QComboBox(w)
-for friend in friends:
-    cbox.addItem(friend)
-h = qt.QHBoxLayout(w)
-remove = qt.QPushButton("Remove")
-remove.clicked.connect(remove_friend)
-h.addWidget(remove)
-new = qt.QPushButton("New")
-new.clicked.connect(new_friend)
-h.addWidget(new)
-v.addLayout(h)
-v.addWidget(cbox)
-
-# Inbox
-h1 = qt.QHBoxLayout(w)
-ib = qt.QTreeWidget(w)
-ib.resize(480, 280)
-h1.addWidget(ib)
-cb = qt.QTextEdit(w)
-cb.resize(480, 440)
-h1.addWidget(cb)
-v.addLayout(h1)
-
-# Status bar
-w.statusBar().showMessage("I'm Listening")
-
-
-w.resize(480, 720)
-w.move(0, 0)
-w.setWindowTitle('SecureDOG')
-w.show()
-app.exec_()
-
-print "Shutdown"
-server.socket.close()
-server.shutdown()
-exit(1)
