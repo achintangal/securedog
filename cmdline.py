@@ -19,7 +19,7 @@ import sys
 import base64
 import threading
 import signal
-import Queue
+import readline
 
 from pubsub import pub
 from Crypto.PublicKey import RSA
@@ -33,8 +33,6 @@ pubkey_text = open(pubkey).read()
 privatekey_text = open(privatekey).read()
 RSA_pubkey = RSA.importKey(pubkey_text)
 RSA_privatekey = RSA.importKey(privatekey_text)
-
-print_queue = Queue.Queue()
 
 try:
     with open('config.json'):
@@ -73,7 +71,6 @@ def listener_for_msg(arg, request):
 
     if confirmed_known_host:
         alias = confirmed_known_host["alias"]
-        print_queue.put("You have received 1 message " + alias)
         msg_handle = open("messages/inbox/" + alias + "/" + data["sha"], "w")
         print >>msg_handle, msg
         msg_handle.close()
@@ -81,6 +78,7 @@ def listener_for_msg(arg, request):
         # spam
         pass
 
+    print "You have received 1 message from " + alias
     request.sendall("OK")
 
 
@@ -116,41 +114,34 @@ class RequestHandler(SocketServer.StreamRequestHandler):
         pub.sendMessage("new", arg=data, request=self.request)
 
 
-server = SocketServer.TCPServer(('127.0.0.1', port), RequestHandler, False)  # Do not automatically bind
-server.allow_reuse_address = True # Prevent 'cannot bind to address' errors on restart
-server.server_bind()     # Manually bind, to support allow_reuse_address
-server.server_activate() # (see above comment)
+server = SocketServer.TCPServer(('127.0.0.1', port), RequestHandler, False)
+server.allow_reuse_address = True
+server.server_bind()
+server.server_activate()
 
 print "Server Started"
 t = threading.Thread(target=server.serve_forever)
 t.start()
 
 
-def signal_handler(signal, frame):
+def shutdown():
     print "Shutdown"
-    server.socket.close()
     server.shutdown()
     exit(0)
+
+
+def signal_handler(signal, frame):
+    shutdown()
+
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGABRT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 
-def print_server():
-    while(1):
-        print print_queue.get(block=True)
-
-t = threading.Thread(target=print_server)
-t.start()
-
 while(1):
-    sys.stdout.write(">>> ")
-    line = sys.stdin.readline()
+    line = raw_input(">>> ")
     if line.startswith("exit"):
-        print "Shutdown"
-        server.socket.close()
-        server.shutdown()
-        exit(0)
+        shutdown()
     elif line.startswith("send"):
         to = line.split(" ")
         msg = open("sent").read()
@@ -171,5 +162,4 @@ while(1):
         sock.sendall(json.dumps(msg_dict))
         sock.shutdown(socket.SHUT_WR)
         ok = sock.recv(1024)
-        print_queue.put("\n" + ok)
         sock.close()
