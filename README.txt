@@ -5,10 +5,18 @@ Prereqs:
 PyQt
 pycrypto
 
-Usage
-=====
+cmdline usage
+=============
 
-securedog.py
+mkdir messages
+mkdir messages/inbox/me
+mkdir messages/sent
+
+python cmdline.py <private_key_path> 2525
+edit sent file
+>>> send <alias>
+
+(edit known hosts file)
 
 Securedog
 =========

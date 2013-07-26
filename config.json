@@ -1,0 +1,7 @@
+[
+ {
+    "host" : "127.0.0.1:2525",
+    "alias": "me",
+    "public_key": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDEuhPsotBIgqKsuzAMat36Bhj1JWC3zIwlx/rK5746A5AzV0o+YEanImDy59Yrz5KCq9/hJU8eTx9bd7jvNsZR78Ews7+v9Rr09cZYSdw6rkDNDeSYTCkcx/9R5AcgSWLIO9+IN/xEmcllHi/R3l9Y8z4dBWonUbFY19wEdgCu9GtkGl8mGBvT0wSbiHu/wMZoXnCvp4rbPCNAoxOWc+bURUSh83+52VwVHfJPbLAJCguubD3Vu2yy2NRHpYDlKX+L6xUSezT1hPvUZkSsyooqrHh484X+a6VnWDpe/rWbwMdrIj8EtN5IrzH+UD/AuoHLFe/h1IHcKYkrsfj36Sax foobar@foobar.fedora"
+ }
+]
